@@ -4,6 +4,16 @@ on:
   release:
     types: [created]
 
+permissions:
+    contents: write
+    checks: write
+    actions: read
+    issues: read
+    packages: write
+    pull-requests: read
+    repository-projects: read
+    statuses: read
+
 jobs:
   release:
     name: release ${{ matrix.target }}
