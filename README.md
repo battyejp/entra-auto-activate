@@ -1,0 +1,4 @@
+- install edgedriver: https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/?form=MA13LH
+  - make sure the version matches your edge
+  - add it to your path
+- run with `entra-auto-activate --role-name <rolename>`
