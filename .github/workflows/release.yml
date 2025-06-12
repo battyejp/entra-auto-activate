@@ -8,17 +8,28 @@ jobs:
   release:
     name: release ${{ matrix.target }}
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        target: [x86_64-pc-windows-gnu]
+    
     steps:
       - uses: actions/checkout@master
-      - name: Compile and release
-        uses: rust-build/rust-build.action@v1.4.5
+      - name: Install Linux and Windows Cross Compilers
+        run: sudo apt-get install --yes --no-install-recommends musl-tools gcc-mingw-w64-x86-64-win32
+
+      - name: Install rustup targets
+        run: rustup target add x86_64-pc-windows-gnu
+
+      - name: Build the executable
+        run: cargo build --release --target x86_64-pc-windows-gnu
+
+      - name: Zip windows binary
+        run: zip -j entra-auto-activate.zip target/x86_64-pc-windows-gnu/release/entra-auto-activate.exe
+
+      - name: Generate SHA256 checksums
+        run: |
+          shasum -a 256 entra-auto-activate.zip > entra-auto-activate.zip.sha256
+
+      - name: Upload release binaries
+        uses: alexellis/upload-assets@0.4.0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
-          TOOLCHAIN_VERSION: stable
-          RUSTTARGET: ${{ matrix.target }}
-          EXTRA_FILES: "README.md"
+          asset_paths: '["entra-auto-activate.zip", "entra-auto-activate.zip.sha256"]'
