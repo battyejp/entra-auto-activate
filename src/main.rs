@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::process::Command;
 use thirtyfour::prelude::*;
-
+use tokio::time::{sleep, Duration};
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -9,14 +9,18 @@ use clap::Parser;
 struct Args
 {
     #[arg(short, long)]
-    role_name: String,
+    role_name: Vec<String>,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let args = Args::parse();
 
-    let _ = match Command::new("msedgedriver")
+    for role_name in &args.role_name {
+        println!("{:?}", role_name);
+    }
+
+    let mut process = match Command::new("msedgedriver")
         .args(&["--port=54950"])
         .spawn() {
         Ok(process) => process,
@@ -25,7 +29,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let caps = DesiredCapabilities::edge();
     let driver = WebDriver::new("http://localhost:54950", caps).await?;
-    // Navigate to https://wikipedia.org.
     driver.goto("https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/GroupRoleBlade/resourceId//subjectId//isInternalCall~/true?Microsoft_AAD_IAM_legacyAADRedirect=true/").await?;
     let roles_table_tbody = driver.query(By::ClassName("azc-grid-groupdata")).first().await?;
     let role_rows = roles_table_tbody.query(By::Tag("tr")).all_from_selector().await?;
@@ -39,7 +42,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         let content = content_div.text().await?;
 
         println!("{:?}", content);
-        if content == args.role_name {
+        if args.role_name.contains(&content) {
             let activate_column = &columns[5];
             let activate_link = activate_column.query(By::Tag("a")).first().await?;
             activate_link.click().await?;
@@ -86,32 +89,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     if title == "Activate" {
                         button.wait_until().enabled().await?;
                         button.click().await?;
+                        sleep(Duration::from_millis(10000)).await;
+                        break;
                     }
                 }
             }
-
-            //let activateButton = driver.query(By::)
-            break;
         }
     }
 
-
-    // Find element from element.
-    /*let elem_text = elem_form.find(By::Id("searchInput")).await?;
-
-    // Type in the search terms.
-    elem_text.send_keys("selenium").await?;
-
-    // Click the search button.
-    let elem_button = elem_form.find(By::Css("button[type='submit']")).await?;
-    elem_button.click().await?;
-
-    // Look for header to implicitly wait for the page to load.
-    driver.query(By::ClassName("firstHeading")).first().await?;
-    assert_eq!(driver.title().await?, "Selenium - Wikipedia");*/
-
-    // Always explicitly close the browser.
     driver.quit().await?;
-
+    let _ = process.kill();
     Ok(())
 }
