@@ -10,6 +10,9 @@ struct Args
 {
     #[arg(short, long)]
     role_name: Vec<String>,
+    
+    #[arg(short, long, default_value = "john.battye@ipfin.co.uk")]
+    email: String,
 }
 
 #[tokio::main]
@@ -30,6 +33,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let caps = DesiredCapabilities::edge();
     let driver = WebDriver::new("http://localhost:54950", caps).await?;
     driver.goto("https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/GroupRoleBlade/resourceId//subjectId//isInternalCall~/true?Microsoft_AAD_IAM_legacyAADRedirect=true/").await?;
+    
+    // Simple wait for page to load and handle any authentication
+    sleep(Duration::from_millis(5000)).await;
+    
     let roles_table_tbody = driver.query(By::ClassName("azc-grid-groupdata")).first().await?;
     let role_rows = roles_table_tbody.query(By::Tag("tr")).all_from_selector().await?;
     
@@ -47,7 +54,17 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             let activate_link = activate_column.query(By::Tag("a")).first().await?;
             activate_link.click().await?;
 
-            let slider = driver.query(By::ClassName("fxc-slider")).first().await?;
+            // Wait for the activation form to appear with manual timeout
+            let mut slider = None;
+            for _ in 0..10 { // 10 attempts = 10 seconds max
+                if let Ok(s) = driver.query(By::ClassName("fxc-slider")).first().await {
+                    slider = Some(s);
+                    break;
+                }
+                sleep(Duration::from_millis(1000)).await;
+            }
+            
+            let slider = slider.ok_or("Activation form not found after 10 seconds")?;
             let tab_pane = slider.parent().await?;
 
             let tab_pane_divs = tab_pane.query(By::Tag("div")).all_from_selector().await?;
