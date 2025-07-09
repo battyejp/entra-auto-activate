@@ -27,23 +27,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let port = 60000 + (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() % 5000) as u16;
     println!("Using port: {}", port);
     
-    // Try to find the correct msedgedriver version
-    let mut process = match Command::new("msedgedriver_v138")
+    // Use the specific Edge WebDriver at C:\Users\Admin\EdgeDriverV138\msedgedriver.exe
+    let mut process = match Command::new("C:\\Users\\Admin\\EdgeDriverV138\\msedgedriver.exe")
         .args(&[format!("--port={}", port)])
         .spawn() {
         Ok(process) => {
-            println!("Using msedgedriver_v138.exe");
+            println!("Using Edge WebDriver v138");
             process
         },
-        Err(_) => {
-            println!("Falling back to standard msedgedriver.exe");
-            match Command::new("msedgedriver")
-                .args(&[format!("--port={}", port)])
-                .spawn() {
-                Ok(process) => process,
-                Err(err) => panic!("Running process error: {}", err),
-            }
-        }
+        Err(err) => panic!("Running process error: {}", err),
     };
 
     // Wait for WebDriver to start
@@ -124,8 +116,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
         println!("{:?}", content);
         if args.role_name.contains(&content) {
+            println!("Found matching role: {}", content);
             let activate_column = &columns[5];
             let activate_link = activate_column.query(By::Tag("a")).first().await?;
+            println!("Clicking activate link for role: {}", content);
             activate_link.click().await?;
 
             // Wait for the activation form to appear with manual timeout
