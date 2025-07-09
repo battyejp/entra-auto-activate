@@ -34,10 +34,65 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let driver = WebDriver::new("http://localhost:54950", caps).await?;
     driver.goto("https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/GroupRoleBlade/resourceId//subjectId//isInternalCall~/true?Microsoft_AAD_IAM_legacyAADRedirect=true/").await?;
     
-    // Simple wait for page to load and handle any authentication
+    // Wait for initial page load
+    sleep(Duration::from_millis(3000)).await;
+    
+    // Check for account selection page and try to select the correct account
+    if let Ok(account_tiles) = driver.query(By::ClassName("table")).first().await {
+        println!("Account selection page detected");
+        
+        // Look for account tiles that might contain the email
+        if let Ok(tiles) = account_tiles.query(By::ClassName("table-row")).all_from_selector().await {
+            println!("Found {} account tiles", tiles.len());
+            
+            for tile in tiles {
+                if let Ok(email_element) = tile.query(By::Tag("div")).first().await {
+                    if let Ok(email_text) = email_element.text().await {
+                        println!("Found account: {}", email_text);
+                        
+                        // Try to match email (case insensitive)
+                        if email_text.to_lowercase().contains(&args.email.to_lowercase()) {
+                            println!("Selecting account: {}", email_text);
+                            tile.click().await?;
+                            // Wait for navigation after account selection
+                            sleep(Duration::from_millis(5000)).await;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // If we're still on the account selection page, select the first account as fallback
+        if let Ok(_) = driver.query(By::ClassName("table")).first().await {
+            println!("Still on account selection page, selecting first account as fallback");
+            if let Ok(first_tile) = driver.query(By::ClassName("table-row")).first().await {
+                first_tile.click().await?;
+                sleep(Duration::from_millis(5000)).await;
+            }
+        }
+    }
+    
+    // Wait for the roles page to fully load
+    println!("Waiting for roles page to load...");
     sleep(Duration::from_millis(5000)).await;
     
-    let roles_table_tbody = driver.query(By::ClassName("azc-grid-groupdata")).first().await?;
+    // Try to locate the roles table
+    let mut attempts = 0;
+    let max_attempts = 5;
+    let mut roles_table_tbody = None;
+    
+    while attempts < max_attempts {
+        if let Ok(table) = driver.query(By::ClassName("azc-grid-groupdata")).first().await {
+            roles_table_tbody = Some(table);
+            break;
+        }
+        println!("Waiting for roles table to appear (attempt {}/{})", attempts + 1, max_attempts);
+        sleep(Duration::from_millis(3000)).await;
+        attempts += 1;
+    }
+    
+    let roles_table_tbody = roles_table_tbody.ok_or("Roles table not found after multiple attempts")?;
     let role_rows = roles_table_tbody.query(By::Tag("tr")).all_from_selector().await?;
     
     for row in role_rows {
