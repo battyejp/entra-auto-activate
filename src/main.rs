@@ -23,15 +23,34 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         println!("{:?}", role_name);
     }
 
-    let mut process = match Command::new("msedgedriver")
-        .args(&["--port=54950"])
+    // Use a random available port in a higher range
+    let port = 60000 + (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() % 5000) as u16;
+    println!("Using port: {}", port);
+    
+    // Try to find the correct msedgedriver version
+    let mut process = match Command::new("msedgedriver_v138")
+        .args(&[format!("--port={}", port)])
         .spawn() {
-        Ok(process) => process,
-        Err(err) => panic!("Running process error: {}", err),
+        Ok(process) => {
+            println!("Using msedgedriver_v138.exe");
+            process
+        },
+        Err(_) => {
+            println!("Falling back to standard msedgedriver.exe");
+            match Command::new("msedgedriver")
+                .args(&[format!("--port={}", port)])
+                .spawn() {
+                Ok(process) => process,
+                Err(err) => panic!("Running process error: {}", err),
+            }
+        }
     };
 
+    // Wait for WebDriver to start
+    sleep(Duration::from_millis(3000)).await;
+
     let caps = DesiredCapabilities::edge();
-    let driver = WebDriver::new("http://localhost:54950", caps).await?;
+    let driver = WebDriver::new(&format!("http://localhost:{}", port), caps).await?;
     driver.goto("https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/GroupRoleBlade/resourceId//subjectId//isInternalCall~/true?Microsoft_AAD_IAM_legacyAADRedirect=true/").await?;
     
     // Wait for initial page load
