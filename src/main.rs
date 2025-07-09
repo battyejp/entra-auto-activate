@@ -23,16 +23,16 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         println!("{:?}", role_name);
     }
 
-    // Use a random available port in a higher range
-    let port = 60000 + (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() % 5000) as u16;
+    // Use a fixed port number
+    let port = 9515;
     println!("Using port: {}", port);
     
-    // Use the specific Edge WebDriver at C:\Users\Admin\EdgeDriverV138\msedgedriver.exe
-    let mut process = match Command::new("C:\\Users\\Admin\\EdgeDriverV138\\msedgedriver.exe")
+    // Use the specific Edge WebDriver at C:\edgedriver_win64\msedgedriver.exe
+    let mut process = match Command::new("C:\\edgedriver_win64\\msedgedriver.exe")
         .args(&[format!("--port={}", port)])
         .spawn() {
         Ok(process) => {
-            println!("Using Edge WebDriver v138");
+            println!("Using Edge WebDriver from C:\\edgedriver_win64\\msedgedriver.exe");
             process
         },
         Err(err) => panic!("Running process error: {}", err),
