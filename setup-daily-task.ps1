@@ -74,11 +74,11 @@ try {
     # Create the trigger (daily at 07:00)
     $Trigger = New-ScheduledTaskTrigger -Daily -At "07:00"
 
-    # Create task settings
-    $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+    # Create task settings with wake capability and other improvements
+    $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -WakeToRun -ExecutionTimeLimit (New-TimeSpan -Hours 1) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 5)
 
-    # Create the principal (run as current user)
-    $Principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive
+    # Create the principal (run as current user with highest privileges)
+    $Principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
 
     # Register the task
     Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal -Description "Daily activation of Entra non-production deployment roles at 07:00"
@@ -87,14 +87,17 @@ try {
     Write-Host ""
     Write-Host "Task Details:" -ForegroundColor Cyan
     Write-Host "  - Runs daily at 07:00" -ForegroundColor White
+    Write-Host "  - Wakes computer if sleeping" -ForegroundColor White
+    Write-Host "  - Runs on battery power" -ForegroundColor White
+    Write-Host "  - Auto-retry on failure (3 times)" -ForegroundColor White
     Write-Host "  - Logs saved to: $LogPath" -ForegroundColor White
     Write-Host "  - Task name: $TaskName" -ForegroundColor White
     Write-Host ""
-    Write-Host "To manage the task:" -ForegroundColor Yellow
-    Write-Host "  - View: Get-ScheduledTask -TaskName '$TaskName'" -ForegroundColor White
-    Write-Host "  - Run now: Start-ScheduledTask -TaskName '$TaskName'" -ForegroundColor White
-    Write-Host "  - Remove: .\setup-daily-task.ps1 -Remove" -ForegroundColor White
-    Write-Host "  - Or use Task Scheduler GUI (taskschd.msc)" -ForegroundColor White
+    Write-Host "IMPORTANT: For the task to wake your computer reliably:" -ForegroundColor Yellow
+    Write-Host "  1. Ensure 'Wake timers' are enabled in Power Options" -ForegroundColor White
+    Write-Host "  2. In Device Manager, enable 'Allow this device to wake the computer'" -ForegroundColor White
+    Write-Host "     for your network adapter and any other relevant devices" -ForegroundColor White
+    Write-Host ""
 
 } catch {
     Write-Host "✗ Failed to create scheduled task: $($_.Exception.Message)" -ForegroundColor Red
